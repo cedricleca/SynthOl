@@ -1,20 +1,23 @@
 #include "SynthOl.h"
 
-//-----------------------------------------------------
-void SO_FilterSource::Init(SO_StereoSoundBuf * _OutBuf, SynthOl * _Synth, int _Channel)
+namespace SynthOl
 {
-	m_SrcWaveForm.Allocate(SO_PLAYBACK_FREQ); 
-	SO_SoundSource::Init(_OutBuf, _Synth, _Channel); 
+
+//-----------------------------------------------------
+void FilterSource::Init(StereoSoundBuf * _OutBuf, Synth * _Synth, int _Channel)
+{
+	m_SrcWaveForm.Allocate(PLAYBACK_FREQ); 
+	SoundSource::Init(_OutBuf, _Synth, _Channel); 
 }
 
 //-----------------------------------------------------
-SO_StereoSoundBuf * SO_FilterSource::GetSrcWaveForm()
+StereoSoundBuf * FilterSource::GetSrcWaveForm()
 {
 	return &m_SrcWaveForm;
 }
 
 //-----------------------------------------------------
-void SO_EchoFilterSource::Init(long _DelayLen, SO_StereoSoundBuf * _OutBuf, SynthOl * _Synth, int _Channel)
+void EchoFilterSource::Init(long _DelayLen, StereoSoundBuf * _OutBuf, Synth * _Synth, int _Channel)
 {
 	m_DelayWaveForm.Allocate(_DelayLen); 
 	m_DelayLen = 0;
@@ -25,11 +28,11 @@ void SO_EchoFilterSource::Init(long _DelayLen, SO_StereoSoundBuf * _OutBuf, Synt
 	m_S0 = 0.0f;
 	m_S1 = 0.0f;
 
-	SO_FilterSource::Init(_OutBuf, _Synth, _Channel); 
+	FilterSource::Init(_OutBuf, _Synth, _Channel); 
 }
 
 //-----------------------------------------------------
-void SO_EchoFilterSource::Render(long _SampleNr)
+void EchoFilterSource::Render(long _SampleNr)
 {
 	long wc = m_OutBuf->m_WriteCursor;
 
@@ -79,3 +82,4 @@ void SO_EchoFilterSource::Render(long _SampleNr)
 	}
 }
 
+};

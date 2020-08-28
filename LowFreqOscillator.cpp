@@ -1,19 +1,22 @@
 #include "SynthOl.h"
 
+namespace SynthOl
+{
+
 //-----------------------------------------------------
-void SO_LowFreqOscillator::Init(SynthOl * _Synth, SO_LowFreqOscillatorData * _Data)
+void LFO::Init(Synth * _Synth, LFOData * _Data)
 {	
-	MemClear((unsigned char *)this, sizeof(SO_LowFreqOscillator));
+	MemClear((unsigned char *)this, sizeof(LFO));
 
 	m_Data = _Data;
 	m_Synth = _Synth;
-	SetOscillator((SO_WaveForms)m_Data->m_WF);
+	SetOscillator((Wave)m_Data->m_WF);
 }
 
 //-----------------------------------------------------
-void SO_LowFreqOscillator::SetOscillator(SO_WaveForms _Wave)
+void LFO::SetOscillator(Wave _Wave)
 {
-	SO_Waveform * Wave = m_Synth->GetWaveForm(_Wave);
+	Waveform * Wave = m_Synth->GetWaveForm(_Wave);
 	if(m_SrcWaveForm != Wave)
 	{
 		m_SrcWaveForm = Wave;  
@@ -23,7 +26,7 @@ void SO_LowFreqOscillator::SetOscillator(SO_WaveForms _Wave)
 }
 
 //-----------------------------------------------------
-float SO_LowFreqOscillator::GetValue(float _NoteTime, bool _ZeroCentered)
+float LFO::GetValue(float _NoteTime, bool _ZeroCentered)
 {
 	if(_NoteTime > m_Data->m_Delay)
 	{
@@ -52,9 +55,9 @@ float SO_LowFreqOscillator::GetValue(float _NoteTime, bool _ZeroCentered)
 }
 
 //-----------------------------------------------------
-void SO_LowFreqOscillator::Update(float _FrameTime)
+void LFO::Update(float _FrameTime)
 {
-	long c = float2int(m_Cursor);
+	long c = int(m_Cursor);
 	float val = m_SrcWaveForm->m_Wave[c];
 	float val2;
 
@@ -71,13 +74,15 @@ void SO_LowFreqOscillator::Update(float _FrameTime)
 		m_CurVal *= m_CurVal;
 
 	m_Cursor += _FrameTime * m_Data->m_Rate * ((float)m_SrcWaveForm->m_Size);
-	while(float2int(m_Cursor) >= m_SrcWaveForm->m_Size)
+	while(int(m_Cursor) >= m_SrcWaveForm->m_Size)
 		m_Cursor -= m_SrcWaveForm->m_Size;
 }
 
 //-----------------------------------------------------
-void SO_LowFreqOscillator::NoteOn()
+void LFO::NoteOn()
 {
 	if(m_Data->m_NoteSync)
 		m_Cursor = 0;
 }
+
+};

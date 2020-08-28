@@ -1,7 +1,10 @@
 #include "SynthOl.h"
 
 
-float SO_OctaveFreq[] = 
+namespace SynthOl
+{
+
+float OctaveFreq[] = 
 {
 	261.6255653006f,
 	277.1826309769f,
@@ -39,16 +42,16 @@ void FloatClamp01(float & _Val)
 }
 
 //-----------------------------------------------------
-float SO_GetNoteFreq(int _NoteCode)
+float GetNoteFreq(int _NoteCode)
 {
-	float Freq = SO_OctaveFreq[_NoteCode%12];
+	float Freq = OctaveFreq[_NoteCode%12];
 	while(_NoteCode < 60)	{	Freq *= 0.5f;	_NoteCode += 12;	}
 	while(_NoteCode > 71)	{	Freq *= 2.0f;	_NoteCode -= 12;	}
 	return Freq;
 }
 
 //-----------------------------------------------------
-float SO_Distortion(float _Gain, float _Sample)
+float Distortion(float _Gain, float _Sample)
 {
 //	float absx = (_Sample<0.0f) ? -_Sample: _Sample;
 //	_Sample = _Sample*(absx + _Gain)/(_Sample*_Sample + (_Gain-1.0f)*absx + 1.0f);
@@ -93,32 +96,32 @@ float SO_Distortion(float _Gain, float _Sample)
 }
 
 //-----------------------------------------------------
-SynthOl::SynthOl()
+Synth::Synth()
 {
 	m_SourceAllocIndex = 0;
 	m_InitDone = false;
 }
 
 //-----------------------------------------------------
-SO_SoundSource * SynthOl::AddSource(SO_SourceType _SourceType)
+SoundSource * Synth::AddSource(SourceType _SourceType)
 {
-	SO_SoundSource * ret = NULL;
+	SoundSource * ret = nullptr;
 
-	if(m_SourceAllocIndex >= SO_SOURCE_NR)
+	if(m_SourceAllocIndex >= SOURCE_NR)
 		return ret;
 
 	switch(_SourceType)
 	{
-	case SO_SourceType_Sample:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new SO_SampleSource;
+	case SourceType::Sample:	
+		ret = m_SourceTab[m_SourceAllocIndex++] = new SampleSource;
 		break;
 
-	case SO_SourceType_Analog:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new SO_AnalogSource;	
+	case SourceType::Analog:	
+		ret = m_SourceTab[m_SourceAllocIndex++] = new AnalogSource;	
 		break;
 
-	case SO_SourceType_EchoFilter:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new SO_EchoFilterSource;	
+	case SourceType::EchoFilter:	
+		ret = m_SourceTab[m_SourceAllocIndex++] = new EchoFilterSource;	
 		break;
 	}
 
@@ -126,32 +129,32 @@ SO_SoundSource * SynthOl::AddSource(SO_SourceType _SourceType)
 }
 
 //-----------------------------------------------------
-void SynthOl::Init()
+void Synth::Init()
 {	
-	m_OutBuf.Allocate(SO_PLAYBACK_FREQ);
+	m_OutBuf.Allocate(PLAYBACK_FREQ);
 
 	// Init la waveTable
-	for(int i = 0; i < SO_Wave_Max; i++)
-		m_WaveTab[i].Allocate(SO_PLAYBACK_FREQ);
+	for(int i = 0; i < (int)Wave::Max; i++)
+		m_WaveTab[i].Allocate(PLAYBACK_FREQ);
 
-	for(int i = SO_Wave_Square; i < SO_Wave_Square_Soft; i++)
+	for(int i = (int)Wave::Square; i < (int)Wave::Square_Soft; i++)
 	{
-		m_WaveTab[i].GenerateWave((SO_WaveForms)i, 0, SO_PLAYBACK_FREQ, SO_PLAYBACK_FREQ, 1.0f);
+		m_WaveTab[i].GenerateWave((Wave)i, 0, PLAYBACK_FREQ, PLAYBACK_FREQ, 1.0f);
 
-		if(i != SO_Wave_Rand)
-			m_WaveTab[i].Soften(0, SO_PLAYBACK_FREQ, 0.005f);
+		if(i != (int)Wave::Rand)
+			m_WaveTab[i].Soften(0, PLAYBACK_FREQ, 0.005f);
 
-		m_WaveTab[i].Normalize(0, SO_PLAYBACK_FREQ, 1.0f);
+		m_WaveTab[i].Normalize(0, PLAYBACK_FREQ, 1.0f);
 	}
 		
-	for(int i = SO_Wave_Square_Soft; i < SO_Wave_Max; i++)
+	for(int i = (int)Wave::Square_Soft; i < (int)Wave::Max; i++)
 	{
-		m_WaveTab[i].GenerateWave((SO_WaveForms)i, 0, SO_PLAYBACK_FREQ, SO_PLAYBACK_FREQ, 1.0f);
+		m_WaveTab[i].GenerateWave((Wave)i, 0, PLAYBACK_FREQ, PLAYBACK_FREQ, 1.0f);
 
 		for(int j = 0; j < 5; j++)
 		{
-			m_WaveTab[i].Soften(0, SO_PLAYBACK_FREQ, 0.001f);
-			m_WaveTab[i].Normalize(0, SO_PLAYBACK_FREQ, 1.0f);
+			m_WaveTab[i].Soften(0, PLAYBACK_FREQ, 0.001f);
+			m_WaveTab[i].Normalize(0, PLAYBACK_FREQ, 1.0f);
 		}
 	}
 
@@ -159,7 +162,7 @@ void SynthOl::Init()
 }
 
 //-----------------------------------------------------
-void SynthOl::Render(DWORD SamplesToRender)
+void Synth::Render(unsigned long SamplesToRender)
 {
 	if(!m_InitDone)
 		return;
@@ -173,17 +176,17 @@ void SynthOl::Render(DWORD SamplesToRender)
 }
 
 //-----------------------------------------------------
-void SynthOl::ClearOutBuffers(DWORD SamplesToRender)
+void Synth::ClearOutBuffers(unsigned long SamplesToRender)
 {
 	for(int i = m_SourceAllocIndex-1; i >= 0; i--)
 	{
-		SO_StereoSoundBuf * Buf = m_SourceTab[i]->GetOutBuf();
+		StereoSoundBuf * Buf = m_SourceTab[i]->GetOutBuf();
 		Buf->Clear(Buf->m_WriteCursor, SamplesToRender);
 	}
 }
 
 //-----------------------------------------------------
-void SynthOl::PopOutputVal(float & _Left, float & _Right)
+void Synth::PopOutputVal(float & _Left, float & _Right)
 {
 	_Left  = m_OutBuf.m_Left[m_OutBuf.m_WriteCursor];
 	_Right = m_OutBuf.m_Right[m_OutBuf.m_WriteCursor];
@@ -200,17 +203,17 @@ void SynthOl::PopOutputVal(float & _Left, float & _Right)
 }
 
 //-----------------------------------------------------
-void SynthOl::NoteOn(int _Channel, int _KeyId, float _Velocity)
+void Synth::NoteOn(int _Channel, int _KeyId, float _Velocity)
 {
 	for(int i = 0; i < m_SourceAllocIndex; i++)
 		m_SourceTab[i]->NoteOn(_Channel, _KeyId, _Velocity);
 }
 
 //-----------------------------------------------------
-void SynthOl::NoteOff(int _Channel, int _KeyId)
+void Synth::NoteOff(int _Channel, int _KeyId)
 {
 	for(int i = 0; i < m_SourceAllocIndex; i++)
 		m_SourceTab[i]->NoteOff(_Channel, _KeyId);
 }
 
-
+};

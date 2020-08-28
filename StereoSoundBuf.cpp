@@ -1,15 +1,18 @@
 #include "SynthOl.h"
 
+namespace SynthOl
+{
+
 //-----------------------------------------------------
-void SO_StereoSoundBuf::Allocate(long _Size)
+void StereoSoundBuf::Allocate(long _Size)
 {
 	m_Left = new  float[_Size];
 	m_Right = new  float[_Size];
-	SO_SoundBuf::Allocate(_Size);
+	SoundBuf::Allocate(_Size);
 }
 
 //-----------------------------------------------------
-void SO_StereoSoundBuf::Clear(long _Index, long _Size)
+void StereoSoundBuf::Clear(long _Index, long _Size)
 {
 	if(_Index + _Size > m_Size)
 	{
@@ -24,3 +27,5 @@ void SO_StereoSoundBuf::Clear(long _Index, long _Size)
 		FloatClear(m_Right + _Index, _Size);
 	}
 }
+
+};

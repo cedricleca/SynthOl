@@ -1,14 +1,17 @@
 #include "SynthOl.h"
 
+namespace SynthOl
+{
+
 //-----------------------------------------------------
-void SO_Waveform::Allocate(long _Size)
+void Waveform::Allocate(long _Size)
 {
 	m_Wave = new  float[_Size];
-	SO_SoundBuf::Allocate(_Size);
+	SoundBuf::Allocate(_Size);
 }
 
 //-----------------------------------------------------
-void SO_Waveform::Clear(long _Index, long _Size)
+void Waveform::Clear(long _Index, long _Size)
 {
 	if(_Index + _Size > m_Size)
 	{
@@ -20,14 +23,14 @@ void SO_Waveform::Clear(long _Index, long _Size)
 }
 
 //-----------------------------------------------------
-void SO_Waveform::Copy(SO_Waveform * _Src, long _SrcIndex, long _DstIndex, long _Size)
+void Waveform::Copy(Waveform * _Src, long _SrcIndex, long _DstIndex, long _Size)
 {
 	for(long i = 0; i < _Size; i++)
 		m_Wave[_DstIndex++] = _Src->m_Wave[_SrcIndex++];
 }
 
 //-----------------------------------------------------
-void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, long _Size, float _Magnitude)
+void Waveform::GenerateWave(Wave _Type, long _Index, long _Period, long _Size, float _Magnitude)
 {
 	long cursor = 0;
 	long halfPeriod = _Period / 2;
@@ -38,20 +41,20 @@ void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, lo
 	int g_x1 = 0x67452301;
 	int g_x2 = 0xefcdab89;
 
-	if(_Type == SO_Wave_Rand)
+	if(_Type == Wave::Rand)
 		_Magnitude *= g_fScale;
 
 	for(long i = 0; i < _Size; i++, cursor++, _Index++)
 	{
 		switch(_Type)
 		{
-		case SO_Wave_Square:
-		case SO_Wave_Square_Soft:
+		case Wave::Square:
+		case Wave::Square_Soft:
 			m_Wave[_Index] = (cursor > QuatPeriod && cursor < QuatPeriod+halfPeriod) ? _Magnitude : -_Magnitude;
 			break;
 
-		case SO_Wave_Saw:
-		case SO_Wave_Saw_Soft:
+		case Wave::Saw:
+		case Wave::Saw_Soft:
 			{
 				float c = (float)cursor;
 				float d = (float)halfPeriod;
@@ -63,8 +66,8 @@ void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, lo
 			}
 			break;
 
-		case SO_Wave_RampUp:
-		case SO_Wave_RampUp_Soft:
+		case Wave::RampUp:
+		case Wave::RampUp_Soft:
 			{
 				float c = (float)cursor;
 				float d = (float)halfPeriod;
@@ -74,7 +77,7 @@ void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, lo
 			break;
 
 /*
-		case SO_Wave_Pulse:
+		case Wave_Pulse:
 			if(_Index < _Size/10)
 				m_Wave[_Index] = _Magnitude;
 			else if(_Index >= halfPeriod && _Index < halfPeriod+_Size/10)
@@ -84,7 +87,7 @@ void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, lo
 			break;
 */
 
-		case SO_Wave_Rand:
+		case Wave::Rand:
 			g_x1 ^= g_x2;
 			m_Wave[_Index] = g_x2 * _Magnitude;
 			g_x2 += g_x1;
@@ -97,7 +100,7 @@ void SO_Waveform::GenerateWave(SO_WaveForms _Type, long _Index, long _Period, lo
 }
 
 //-----------------------------------------------------
-void SO_Waveform::Normalize(long _Index, long _Size, float _Coef)
+void Waveform::Normalize(long _Index, long _Size, float _Coef)
 {
 	float max = 0.0f;
 
@@ -111,14 +114,14 @@ void SO_Waveform::Normalize(long _Index, long _Size, float _Coef)
 }
 
 //-----------------------------------------------------
-void SO_Waveform::operator *= (float _Coef)
+void Waveform::operator *= (float _Coef)
 {
 	for(int i = 0; i < m_Size; i++)
 		m_Wave[i] *= _Coef;
 }
 
 //-----------------------------------------------------
-void SO_Waveform::Soften(long _Index, long _Size, float _Coef)
+void Waveform::Soften(long _Index, long _Size, float _Coef)
 {	
 	long i = 0;
 
@@ -131,3 +134,4 @@ void SO_Waveform::Soften(long _Index, long _Size, float _Coef)
 	}
 }
 
+};
