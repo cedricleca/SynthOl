@@ -15,7 +15,7 @@ namespace SynthOl
 		long step = (m_ResoDelayLen/(m_ResoSteps+1)) + 1;
 		for(int j = 0; j >= -m_ResoDelayLen; j-=step)
 		{
-			int csr = m_SrcWaveForm.m_WriteCursor + j;
+			size_t csr = m_SrcWaveForm.m_WriteCursor + j;
 			if(csr < 0)
 				csr += m_SrcWaveForm.m_Data.size();
 
