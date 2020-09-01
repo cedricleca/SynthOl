@@ -110,9 +110,9 @@ namespace SynthOl
 			if(_Channel==m_Channel)
 				NoteOff(_KeyId);
 		}
-		virtual void NoteOn(int _KeyId, float _Velocity){}
-		virtual void NoteOff(int _KeyId){}
-		virtual void Render(long _SampleNr){}
+		virtual void NoteOn(int _KeyId, float _Velocity) = 0;
+		virtual void NoteOff(int _KeyId) = 0;
+		virtual void Render(long _SampleNr) = 0;
 		virtual StereoSoundBuf & GetDest(){ return *m_Dest.get(); }
 	};
 
@@ -124,8 +124,6 @@ namespace SynthOl
 
 	public:
 		long			m_Cursor;
-
-		virtual void Render(long _SampleNr) = 0;
 	};
 
 	//_________________________________________________
@@ -147,7 +145,7 @@ namespace SynthOl
 			FilterSource(Dest, Synth, Channel)
 		{}
 
-		virtual void Render(long _SampleNr);
+		virtual void Render(long _SampleNr) override;
 	};
 
 	//_________________________________________________
@@ -166,8 +164,8 @@ namespace SynthOl
 			m_SrcWaveForm(SrcWaveForm)
 		{}
 
-		void NoteOn(int KeyId, float Velocity){ m_Cursor = 0; }
-		void Render(long SampleNr);
+		void NoteOn(int KeyId, float Velocity) override { m_Cursor = 0; }
+		void Render(long SampleNr) override;
 	};
 
 	//_________________________________________________
@@ -297,9 +295,9 @@ namespace SynthOl
 		Transients			m_Transients;
 
 		AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, AnalogSourceData * Data);
-		void NoteOn(int _KeyId, float _Velocity);
-		void NoteOff(int _KeyId);
-		void Render(long _SampleNr);
+		void NoteOn(int _KeyId, float _Velocity) override;
+		void NoteOff(int _KeyId) override;
+		void Render(long _SampleNr) override;
 		void SetOscillator(WaveType _Wave, WaveType _MorphWave, int _Index);
 		float GetADSRValue(Note * _Note, float _Time);
 	};
