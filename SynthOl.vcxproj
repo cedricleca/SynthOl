@@ -95,7 +95,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
-      <OutputFile>$(Configuration)\$(ProjectName)d.lib</OutputFile>
+      <OutputFile>$(SolutionDir)$(Configuration)\$(ProjectName)d.lib</OutputFile>
       <AdditionalLibraryDirectories>$(Configuration)\$(ProjectName)d</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -115,7 +115,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
-      <OutputFile>$(SolutionDir)$(Platform)\$(Configuration)\\$(ProjectName)d.lib</OutputFile>
+      <OutputFile>$(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName)d.lib</OutputFile>
       <AdditionalLibraryDirectories>$(Configuration)\$(ProjectName)d</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -145,7 +145,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
-      <OutputFile>$(Configuration)\$(ProjectName).lib</OutputFile>
+      <OutputFile>$(SolutionDir)$(Configuration)\$(ProjectName).lib</OutputFile>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
     </Lib>
   </ItemDefinitionGroup>
@@ -175,7 +175,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
-      <OutputFile>$(SolutionDir)$(Platform)\$(Configuration)\\$(ProjectName).lib</OutputFile>
+      <OutputFile>$(SolutionDir)$(Platform)\$(Configuration)\$(ProjectName).lib</OutputFile>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
     </Lib>
   </ItemDefinitionGroup>
