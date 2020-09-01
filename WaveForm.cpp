@@ -2,102 +2,69 @@
 
 namespace SynthOl
 {
-
-//-----------------------------------------------------
-void Waveform::Allocate(long _Size)
-{
-	m_Wave = new  float[_Size];
-	SoundBuf::Allocate(_Size);
-}
-
-//-----------------------------------------------------
-void Waveform::Clear(long _Index, long _Size)
-{
-	if(_Index + _Size > m_Size)
+	void Waveform::WaveformSquare(unsigned int Size, float Magnitude, bool Soft)
 	{
-		FloatClear(m_Wave + _Index, m_Size - _Index);
-		FloatClear(m_Wave, _Size - (m_Size - _Index));
-	}
-	else
-		FloatClear(m_Wave + _Index, _Size);
-}
-
-//-----------------------------------------------------
-void Waveform::Copy(Waveform * _Src, long _SrcIndex, long _DstIndex, long _Size)
-{
-	for(long i = 0; i < _Size; i++)
-		m_Wave[_DstIndex++] = _Src->m_Wave[_SrcIndex++];
-}
-
-//-----------------------------------------------------
-void Waveform::GenerateWave(Wave _Type, long _Index, long _Period, long _Size, float _Magnitude)
-{
-	long cursor = 0;
-	long halfPeriod = _Period / 2;
-	long QuatPeriod = _Period / 4;
-	long period16 = _Period / 16;
+		const unsigned int halfPeriod = Size / 2;
+		const unsigned int QuatPeriod = Size / 4;
 	
-	float g_fScale = 2.0f / 0xffffffff;
-	int g_x1 = 0x67452301;
-	int g_x2 = 0xefcdab89;
+		for(unsigned int i = 0; i < Size; i++)
+			m_Data[i] = (i > QuatPeriod && i < QuatPeriod+halfPeriod) ? Magnitude : -Magnitude;
 
-	if(_Type == Wave::Rand)
-		_Magnitude *= g_fScale;
-
-	for(long i = 0; i < _Size; i++, cursor++, _Index++)
-	{
-		switch(_Type)
+		if(Soft)
 		{
-		case Wave::Square:
-		case Wave::Square_Soft:
-			m_Wave[_Index] = (cursor > QuatPeriod && cursor < QuatPeriod+halfPeriod) ? _Magnitude : -_Magnitude;
-			break;
+			Soften(0, PlaybackFreq, 0.001f);
+			Normalize(0, PlaybackFreq, 1.0f);
+		}
+	}
 
-		case Wave::Saw:
-		case Wave::Saw_Soft:
-			{
-				float c = (float)cursor;
-				float d = (float)halfPeriod;
-
-				if(cursor < halfPeriod)
-					m_Wave[_Index] = ((2.0f * c/d) - 1.0f) * _Magnitude;
-				else
-					m_Wave[_Index] = (1.0f - 2.0f * ((c - d)/d)) * _Magnitude;
-			}
-			break;
-
-		case Wave::RampUp:
-		case Wave::RampUp_Soft:
-			{
-				float c = (float)cursor;
-				float d = (float)halfPeriod;
-
-				m_Wave[_Index] = ((c/d) - 1.0f) * _Magnitude;
-			}
-			break;
-
-/*
-		case Wave_Pulse:
-			if(_Index < _Size/10)
-				m_Wave[_Index] = _Magnitude;
-			else if(_Index >= halfPeriod && _Index < halfPeriod+_Size/10)
-				m_Wave[_Index] = -_Magnitude;
+	void Waveform::WaveformSaw(unsigned int Size, float Magnitude, bool Soft)
+	{
+		const float halfPeriod = float(Size) / 2.0f;
+	
+		float c = 0.0f;
+		for(unsigned int i = 0; i < Size; i++, c += 1.0f)
+		{
+			if(i < Size / 2)
+				m_Data[i] = ((2.0f * c / halfPeriod) - 1.0f) * Magnitude;
 			else
-				m_Wave[_Index] = m_Wave[_Index-1] * 0.999f;
-			break;
-*/
-
-		case Wave::Rand:
-			g_x1 ^= g_x2;
-			m_Wave[_Index] = g_x2 * _Magnitude;
-			g_x2 += g_x1;
-			break;
+				m_Data[i] = (1.0f - 2.0f * ((c - halfPeriod) / halfPeriod)) * Magnitude;
 		}
 
-		if(cursor > _Period)
-			cursor = -1;
+		if(Soft)
+		{
+			Soften(0, PlaybackFreq, 0.001f);
+			Normalize(0, PlaybackFreq, 1.0f);
+		}
 	}
-}
+
+	void Waveform::WaveformRamp(unsigned int Size, float Magnitude, bool Soft)
+	{
+		const float halfPeriod = float(Size) / 2.0f;
+	
+		float c = 0.0f;
+		for(unsigned int i = 0; i < Size; i++, c += 1.0f)
+			m_Data[i] = ((c / halfPeriod) - 1.0f) * Magnitude;
+
+		if(Soft)
+		{
+			Soften(0, PlaybackFreq, 0.001f);
+			Normalize(0, PlaybackFreq, 1.0f);
+		}
+	}
+
+	void Waveform::WaveformRand(unsigned int Size, float Magnitude, bool Soft)
+	{
+		int g_x1 = 0x67452301;
+		int g_x2 = 0xefcdab89;
+		Magnitude *= 2.0f / 0xffffffff;
+
+		for(unsigned int i = 0; i < Size; i++)
+		{
+			g_x1 ^= g_x2;
+			m_Data[i] = g_x2 * Magnitude;
+			g_x2 += g_x1;
+		}
+	}
 
 //-----------------------------------------------------
 void Waveform::Normalize(long _Index, long _Size, float _Coef)
@@ -106,8 +73,8 @@ void Waveform::Normalize(long _Index, long _Size, float _Coef)
 
 	for(int i = 0; i < _Size; i++, _Index++)
 	{
-		if(m_Wave[_Index] > max) max = m_Wave[_Index];
-		if(-m_Wave[_Index] > max) max = -m_Wave[_Index];
+		if(m_Data[_Index] > max) max = m_Data[_Index];
+		if(-m_Data[_Index] > max) max = -m_Data[_Index];
 	}
 
 	*this *= 1.0f / max;
@@ -116,8 +83,8 @@ void Waveform::Normalize(long _Index, long _Size, float _Coef)
 //-----------------------------------------------------
 void Waveform::operator *= (float _Coef)
 {
-	for(int i = 0; i < m_Size; i++)
-		m_Wave[i] *= _Coef;
+	for(unsigned int i = 0; i < m_Data.size(); i++)
+		m_Data[i] *= _Coef;
 }
 
 //-----------------------------------------------------
@@ -128,9 +95,9 @@ void Waveform::Soften(long _Index, long _Size, float _Coef)
 	for(i = 0; i < _Size; i++, _Index++)
 	{
 		if(_Index > 0)
-			m_Wave[_Index] = m_Wave[_Index-1] + (m_Wave[_Index] - m_Wave[_Index-1]) * _Coef;
+			m_Data[_Index] = m_Data[_Index-1] + (m_Data[_Index] - m_Data[_Index-1]) * _Coef;
 		else
-			m_Wave[_Index] = m_Wave[m_Size-1] + (m_Wave[_Index] - m_Wave[m_Size-1]) * _Coef;
+			m_Data[_Index] = m_Data[m_Data.size()-1] + (m_Data[_Index] - m_Data[m_Data.size()-1]) * _Coef;
 	}
 }
 

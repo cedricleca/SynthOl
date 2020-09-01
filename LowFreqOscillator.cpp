@@ -6,22 +6,22 @@ namespace SynthOl
 //-----------------------------------------------------
 void LFO::Init(Synth * _Synth, LFOData * _Data)
 {	
-	MemClear((unsigned char *)this, sizeof(LFO));
+	std::memset(this, 0, sizeof(LFO));
 
 	m_Data = _Data;
 	m_Synth = _Synth;
-	SetOscillator((Wave)m_Data->m_WF);
+	SetOscillator((WaveType)m_Data->m_WF);
 }
 
 //-----------------------------------------------------
-void LFO::SetOscillator(Wave _Wave)
+void LFO::SetOscillator(WaveType Wave)
 {
-	Waveform * Wave = m_Synth->GetWaveForm(_Wave);
-	if(m_SrcWaveForm != Wave)
+	const Waveform & Waveform = m_Synth->GetWaveForm(Wave);
+	if(m_SrcWaveForm != &Waveform)
 	{
-		m_SrcWaveForm = Wave;  
+		m_SrcWaveForm = &Waveform;  
 		m_Cursor = 0.0f;
-		m_Data->m_WF = _Wave;
+		m_Data->m_WF = Wave;
 	}
 }
 
@@ -57,14 +57,14 @@ float LFO::GetValue(float _NoteTime, bool _ZeroCentered)
 //-----------------------------------------------------
 void LFO::Update(float _FrameTime)
 {
-	long c = int(m_Cursor);
-	float val = m_SrcWaveForm->m_Wave[c];
+	unsigned int c = int(m_Cursor);
+	float val = m_SrcWaveForm->m_Data[c];
 	float val2;
 
-	if(c + 1 < m_SrcWaveForm->m_Size)
-		val2 = m_SrcWaveForm->m_Wave[c+1];
+	if(c + 1 < m_SrcWaveForm->m_Data.size())
+		val2 = m_SrcWaveForm->m_Data[c+1];
 	else
-		val2 = m_SrcWaveForm->m_Wave[0];
+		val2 = m_SrcWaveForm->m_Data[0];
 
 	m_CurVal = (m_Cursor - (float)c) * val2 + (1.0f - m_Cursor + (float)c) * val;
 
@@ -73,9 +73,9 @@ void LFO::Update(float _FrameTime)
 	else
 		m_CurVal *= m_CurVal;
 
-	m_Cursor += _FrameTime * m_Data->m_Rate * ((float)m_SrcWaveForm->m_Size);
-	while(int(m_Cursor) >= m_SrcWaveForm->m_Size)
-		m_Cursor -= m_SrcWaveForm->m_Size;
+	m_Cursor += _FrameTime * m_Data->m_Rate * ((float)m_SrcWaveForm->m_Data.size());
+	while(unsigned int(m_Cursor) >= m_SrcWaveForm->m_Data.size())
+		m_Cursor -= m_SrcWaveForm->m_Data.size();
 }
 
 //-----------------------------------------------------

@@ -1,5 +1,6 @@
 #include "SynthOl.h"
-
+#include <tuple>
+#include <algorithm>
 
 namespace SynthOl
 {
@@ -22,24 +23,7 @@ float OctaveFreq[] =
 
 
 //-----------------------------------------------------------------------------
-void FloatClear(float * Dest, long len)
-{
-	for(long i = 0; i < len; i++)
-		Dest[i] = 0.0f;
-}
-
-//-----------------------------------------------------
-void MemClear(unsigned char * Dest, long len)
-{
-	for(long i = 0; i < len; i++)
-		Dest[i] = 0;
-}
-
-//-----------------------------------------------------
-void FloatClamp01(float & _Val)
-{
-	_Val = ((_Val > 1.0f)? 1.0f : ((_Val < 0.0f)? 0.0f : _Val) );
-}
+void FloatClear(float * Dest, long len) { std::memset(Dest, 0, len*sizeof(float)); }
 
 //-----------------------------------------------------
 float GetNoteFreq(int _NoteCode)
@@ -95,125 +79,50 @@ float Distortion(float _Gain, float _Sample)
 	return _Sample;
 }
 
-//-----------------------------------------------------
 Synth::Synth()
 {
-	m_SourceAllocIndex = 0;
-	m_InitDone = false;
-}
-
-//-----------------------------------------------------
-SoundSource * Synth::AddSource(SourceType _SourceType)
-{
-	SoundSource * ret = nullptr;
-
-	if(m_SourceAllocIndex >= SOURCE_NR)
-		return ret;
-
-	switch(_SourceType)
-	{
-	case SourceType::Sample:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new SampleSource;
-		break;
-
-	case SourceType::Analog:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new AnalogSource;	
-		break;
-
-	case SourceType::EchoFilter:	
-		ret = m_SourceTab[m_SourceAllocIndex++] = new EchoFilterSource;	
-		break;
-	}
-
-	return ret;
-}
-
-//-----------------------------------------------------
-void Synth::Init()
-{	
-	m_OutBuf.Allocate(PLAYBACK_FREQ);
-
-	// Init la waveTable
-	for(int i = 0; i < (int)Wave::Max; i++)
-		m_WaveTab[i].Allocate(PLAYBACK_FREQ);
-
-	for(int i = (int)Wave::Square; i < (int)Wave::Square_Soft; i++)
-	{
-		m_WaveTab[i].GenerateWave((Wave)i, 0, PLAYBACK_FREQ, PLAYBACK_FREQ, 1.0f);
-
-		if(i != (int)Wave::Rand)
-			m_WaveTab[i].Soften(0, PLAYBACK_FREQ, 0.005f);
-
-		m_WaveTab[i].Normalize(0, PLAYBACK_FREQ, 1.0f);
-	}
-		
-	for(int i = (int)Wave::Square_Soft; i < (int)Wave::Max; i++)
-	{
-		m_WaveTab[i].GenerateWave((Wave)i, 0, PLAYBACK_FREQ, PLAYBACK_FREQ, 1.0f);
-
-		for(int j = 0; j < 5; j++)
-		{
-			m_WaveTab[i].Soften(0, PLAYBACK_FREQ, 0.001f);
-			m_WaveTab[i].Normalize(0, PLAYBACK_FREQ, 1.0f);
-		}
-	}
-
-	m_InitDone = true;
+	m_WaveTab[(int)WaveType::Square].WaveformSquare(PlaybackFreq, 1.f, false);
+	m_WaveTab[(int)WaveType::Square_Soft].WaveformSquare(PlaybackFreq, 1.f, true);
+	m_WaveTab[(int)WaveType::Saw].WaveformSaw(PlaybackFreq, 1.f, false);
+	m_WaveTab[(int)WaveType::Saw_Soft].WaveformSaw(PlaybackFreq, 1.f, true);
+	m_WaveTab[(int)WaveType::RampUp].WaveformRamp(PlaybackFreq, 1.f, false);
+	m_WaveTab[(int)WaveType::RampUp_Soft].WaveformRamp(PlaybackFreq, 1.f, true);
+	m_WaveTab[(int)WaveType::Rand].WaveformRand(PlaybackFreq, 1.f, false);
 }
 
 //-----------------------------------------------------
 void Synth::Render(unsigned long SamplesToRender)
 {
-	if(!m_InitDone)
-		return;
-
 	// clear out buffers
-	ClearOutBuffers(SamplesToRender);
+	for(auto It = std::end(m_SourceTab)-1; It >= std::begin(m_SourceTab); --It)
+		(*It)->GetDest().Clear(SamplesToRender);
 
 	// render source buffers en reverse
-	for(int i = m_SourceAllocIndex-1; i >= 0; i--)
-		m_SourceTab[i]->Render(SamplesToRender);
+	for(auto It = std::end(m_SourceTab)-1; It >= std::begin(m_SourceTab); --It)
+		(*It)->Render(SamplesToRender);
 }
 
 //-----------------------------------------------------
-void Synth::ClearOutBuffers(unsigned long SamplesToRender)
+void Synth::PopOutputVal(float & Left, float & Right)
 {
-	for(int i = m_SourceAllocIndex-1; i >= 0; i--)
-	{
-		StereoSoundBuf * Buf = m_SourceTab[i]->GetOutBuf();
-		Buf->Clear(Buf->m_WriteCursor, SamplesToRender);
-	}
-}
-
-//-----------------------------------------------------
-void Synth::PopOutputVal(float & _Left, float & _Right)
-{
-	_Left  = m_OutBuf.m_Left[m_OutBuf.m_WriteCursor];
-	_Right = m_OutBuf.m_Right[m_OutBuf.m_WriteCursor];
-
-	if(_Left > 1.0f)		_Left = 1.0f;
-	else if(_Left < -1.0f)	_Left = -1.0f;						
-
-	if(_Right > 1.0f)		_Right = 1.0f;
-	else if(_Right < -1.0f)	_Right = -1.0f;						
-
-	m_OutBuf.m_WriteCursor++;
-	if(m_OutBuf.m_WriteCursor >= m_OutBuf.m_Size)
-		m_OutBuf.m_WriteCursor -= m_OutBuf.m_Size;
+	std::tie(Left, Right) = m_OutBuf.m_Data[m_OutBuf.m_WriteCursor];
+	Left = std::clamp(Left, 0.f, 1.f);
+	Right = std::clamp(Right, 0.f, 1.f);
+	m_OutBuf.m_WriteCursor = (m_OutBuf.m_WriteCursor + 1) % m_OutBuf.m_Data.size(); 
 }
 
 //-----------------------------------------------------
 void Synth::NoteOn(int _Channel, int _KeyId, float _Velocity)
 {
-	for(int i = 0; i < m_SourceAllocIndex; i++)
-		m_SourceTab[i]->NoteOn(_Channel, _KeyId, _Velocity);
+	for(auto & Source : m_SourceTab)
+		Source->NoteOn(_Channel, _KeyId, _Velocity);
 }
 
 //-----------------------------------------------------
 void Synth::NoteOff(int _Channel, int _KeyId)
 {
-	for(int i = 0; i < m_SourceAllocIndex; i++)
-		m_SourceTab[i]->NoteOff(_Channel, _KeyId);
+	for(auto & Source : m_SourceTab)
+		Source->NoteOff(_Channel, _KeyId);
 }
 
 };

@@ -92,6 +92,7 @@
       <DebugInformationFormat>
       </DebugInformationFormat>
       <OmitDefaultLibName>true</OmitDefaultLibName>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
       <OutputFile>$(Configuration)\$(ProjectName).lib</OutputFile>

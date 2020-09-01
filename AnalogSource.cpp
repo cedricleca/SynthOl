@@ -1,25 +1,22 @@
 #include "SynthOl.h"
+#include <algorithm>
 
 namespace SynthOl
 {
 
 //-----------------------------------------------------
-void AnalogSource::Init(StereoSoundBuf * _OutBuf, Synth * _Synth, AnalogSourceData * _Data, int _Channel)
+AnalogSource::AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, AnalogSourceData * Data) : 
+	SoundSource(Dest, Synth, Channel),
+	m_Data(Data)
 {
-	MemClear((unsigned char *)&m_Transients, sizeof(Transients));
-
-	m_Data = _Data;
-
-	SoundSource::Init(_OutBuf, _Synth, _Channel); 
-
-	for(int i = 0; i < ANALOGSOURCE_OSCILLATOR_NR; i++)
+	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
 	{
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )].Init(_Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )].Init(_Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)].Init(_Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )].Init(_Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )]);
+		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )]);
+		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )]);
+		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)]);
+		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )]);
 
-		SetOscillator((Wave)m_Data->m_OscillatorTab[i].m_WF0, (Wave)m_Data->m_OscillatorTab[i].m_WF1, i);
+		SetOscillator((WaveType)m_Data->m_OscillatorTab[i].m_WF0, (WaveType)m_Data->m_OscillatorTab[i].m_WF1, i);
 	}
 
 	m_Data->m_PolyphonyMode = PolyphonyMode::Arpeggio;
@@ -29,7 +26,7 @@ void AnalogSource::Init(StereoSoundBuf * _OutBuf, Synth * _Synth, AnalogSourceDa
 //-----------------------------------------------------
 void AnalogSource::NoteOn(int _KeyId, float _Velocity)
 {	
-	for(int k = 0; k < ANALOGSOURCE_POLYPHONY_NOTE_NR; k++)
+	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 	{
 		if(m_Transients.m_NoteTab[k].m_Code == _KeyId && m_Transients.m_NoteTab[k].m_NoteOn)
 			return;
@@ -54,7 +51,7 @@ void AnalogSource::NoteOn(int _KeyId, float _Velocity)
 	}
 	else
 	{
-		for(int k = 0; k < ANALOGSOURCE_POLYPHONY_NOTE_NR; k++)
+		for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 		{
 			if(!m_Transients.m_NoteTab[k].m_NoteOn)
 			{
@@ -67,14 +64,14 @@ void AnalogSource::NoteOn(int _KeyId, float _Velocity)
 Out:
 	m_Transients.m_NoteTab[Idx].NoteOn(_KeyId, _Velocity);
 
-	for(int j = 0; j < ANALOGSOURCE_LOWFREQ_OSCILLATOR_NR; j++)
-		m_LowFreqOscillatorTab[j].NoteOn();
+	for(auto & LFO : m_LowFreqOscillatorTab)
+		LFO.NoteOn();
 }
 
 //-----------------------------------------------------
 void AnalogSource::NoteOff(int _KeyId)
 {
-	for(int k = 0; k < ANALOGSOURCE_POLYPHONY_NOTE_NR; k++)
+	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 	{
 		if(m_Transients.m_NoteTab[k].m_Code == _KeyId)
 		{
@@ -117,40 +114,41 @@ float AnalogSource::GetADSRValue(Note * _Note, float _Time)
 }
 
 //-----------------------------------------------------
-void AnalogSource::SetOscillator(Wave _Wave, Wave _MorphWave, int _Index)
+void AnalogSource::SetOscillator(WaveType Wave, WaveType MorphWave, int Index)
 {
-	Waveform * Wave = m_Synth->GetWaveForm(_Wave);
-	Waveform * MorphWave = m_Synth->GetWaveForm(_MorphWave);
+	const Waveform & BaseWaveForm = m_Synth->GetWaveForm(Wave);
+	const Waveform & MorphWaveForm = m_Synth->GetWaveForm(MorphWave);
 
-	for(int k = 0; k < ANALOGSOURCE_POLYPHONY_NOTE_NR; k++)
+	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 	{
-		if(m_Transients.m_OscillatorTab[_Index].m_SrcWaveForm != Wave)
-			m_Transients.m_InterpTab[k][_Index].m_Cursor = 0.0f;
+		if(m_Transients.m_OscillatorTab[Index].m_SrcWaveForm != &BaseWaveForm)
+			m_Transients.m_InterpTab[k][Index].m_Cursor = 0.0f;
 
-		if(m_Transients.m_OscillatorTab[_Index].m_SrcMorphWaveForm != MorphWave)
-			m_Transients.m_InterpTab[k][_Index].m_Cursor = 0.0f;
+		if(m_Transients.m_OscillatorTab[Index].m_SrcMorphWaveForm != &MorphWaveForm)
+			m_Transients.m_InterpTab[k][Index].m_Cursor = 0.0f;
 	}
 
-	m_Transients.m_OscillatorTab[_Index].m_SrcWaveForm = Wave; 
-	m_Transients.m_OscillatorTab[_Index].m_SrcMorphWaveForm = MorphWave; 
-	m_Data->m_OscillatorTab[_Index].m_WF0 = _Wave;
-	m_Data->m_OscillatorTab[_Index].m_WF1 = _MorphWave;
+	m_Transients.m_OscillatorTab[Index].m_SrcWaveForm = &BaseWaveForm; 
+	m_Transients.m_OscillatorTab[Index].m_SrcMorphWaveForm = &MorphWaveForm; 
+	m_Data->m_OscillatorTab[Index].m_WF0 = Wave;
+	m_Data->m_OscillatorTab[Index].m_WF1 = MorphWave;
 }
 
 //-----------------------------------------------------
 void AnalogSource::Render(long _SampleNr)
 {
-	long wc = m_OutBuf->m_WriteCursor;
+	auto * OutBuf = m_Dest.get();
+	long wc = OutBuf->m_WriteCursor;
 	long wcSav = wc;
 
-	float time = (float)_SampleNr / PLAYBACK_FREQ;
+	float time = (float)_SampleNr / PlaybackFreq;
 
 	// update Low freq oscillators
-	for(int j = 0; j < ANALOGSOURCE_LOWFREQ_OSCILLATOR_NR; j++)
-		m_LowFreqOscillatorTab[j].Update(time);
+	for(auto & LFO : m_LowFreqOscillatorTab)
+		LFO.Update(time);
 	
 	int nbActiveNotes = 0;
-	for(int k = 0; k < ANALOGSOURCE_POLYPHONY_NOTE_NR; k++)
+	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 	{
 		// arpeggio : count active notes
 		if(m_Transients.m_NoteTab[k].m_NoteOn)
@@ -163,7 +161,7 @@ void AnalogSource::Render(long _SampleNr)
 		m_Transients.m_ArpeggioIdx %= (nbActiveNotes<<1);
 	}
 
-	int PolyNoteNr = (m_Data->m_PolyphonyMode == PolyphonyMode::Poly ? ANALOGSOURCE_POLYPHONY_NOTE_NR : 1);
+	int PolyNoteNr = (m_Data->m_PolyphonyMode == PolyphonyMode::Poly ? AnalogsourcePolyphonyNoteNr : 1);
 	for(int k = 0; k < PolyNoteNr; k++)
 	{
 		m_Transients.m_NoteTab[k].m_Time += time;
@@ -196,7 +194,7 @@ void AnalogSource::Render(long _SampleNr)
 		}
 
 		// update Oscillators
-		for(int j = 0; j < ANALOGSOURCE_OSCILLATOR_NR; j++)
+		for(int j = 0; j < AnalogsourceOscillatorNr; j++)
 		{
 			m_Transients.m_OscillatorTab[j].m_Volume		= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Volume )].GetValue(m_Transients.m_NoteTab[k].m_Time);
 			m_Transients.m_OscillatorTab[j].m_Morph			= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Morph  )].GetValue(m_Transients.m_NoteTab[k].m_Time);
@@ -208,7 +206,7 @@ void AnalogSource::Render(long _SampleNr)
 			for(int i = 0; i > m_Data->m_OscillatorTab[j].m_OctaveOffset; i--)	Freq *= 0.5f;
 			
 			// update step value
-			if(m_Transients.m_OscillatorTab[j].m_SrcWaveForm == m_Synth->GetWaveForm(Wave::Rand))
+			if(m_Transients.m_OscillatorTab[j].m_SrcWaveForm == &m_Synth->GetWaveForm(WaveType::Rand))
 				m_Transients.m_OscillatorTab[j].m_Step = 1.0f / (36.0f*m_Transients.m_OscillatorTab[j].m_StepShift+1.0f);
 			else
 				m_Transients.m_OscillatorTab[j].m_Step = Freq + m_Transients.m_OscillatorTab[j].m_StepShift;
@@ -219,7 +217,7 @@ void AnalogSource::Render(long _SampleNr)
 			if(m_Transients.m_OscillatorTab[j].m_Volume < 0.0f)
 				m_Transients.m_OscillatorTab[j].m_Volume = 0.0f;
 
-			FloatClamp01(m_Transients.m_OscillatorTab[j].m_Morph);
+			m_Transients.m_OscillatorTab[j].m_Morph = std::clamp(m_Transients.m_OscillatorTab[j].m_Morph, 0.f, 1.f);
 
 			m_Transients.m_OscillatorTab[j].m_Volume *= VolumeMultiplier;
 
@@ -235,12 +233,12 @@ void AnalogSource::Render(long _SampleNr)
 		for(long i = 0; i < _SampleNr; i++)
 		{
 			float Output = 0.0f;
-			for(int j = 0; j < ANALOGSOURCE_OSCILLATOR_NR; j++)
+			for(int j = 0; j < AnalogsourceOscillatorNr; j++)
 			{
 				long cursor = int(m_Transients.m_InterpTab[k][j].m_Cursor);
 
-				float val = (1.0f - m_Transients.m_InterpTab[k][j].m_Morph) * m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Wave[cursor];
-				val += m_Transients.m_InterpTab[k][j].m_Morph * m_Transients.m_OscillatorTab[j].m_SrcMorphWaveForm->m_Wave[cursor];
+				float val = (1.0f - m_Transients.m_InterpTab[k][j].m_Morph) * m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Data[cursor];
+				val += m_Transients.m_InterpTab[k][j].m_Morph * m_Transients.m_OscillatorTab[j].m_SrcMorphWaveForm->m_Data[cursor];
 				val = Distortion(m_Transients.m_InterpTab[k][j].m_DistortGain, val);
 				val *= m_Transients.m_InterpTab[k][j].m_Volume;
 
@@ -258,17 +256,12 @@ void AnalogSource::Render(long _SampleNr)
 
 				// avance le curseur de lecture de l'oscillateur
 				m_Transients.m_InterpTab[k][j].m_Cursor += m_Transients.m_OscillatorTab[j].m_Step;		
-				while(int(m_Transients.m_InterpTab[k][j].m_Cursor) >= m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Size)
-					m_Transients.m_InterpTab[k][j].m_Cursor -= m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Size;
+				while(unsigned int(m_Transients.m_InterpTab[k][j].m_Cursor) >= m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Data.size())
+					m_Transients.m_InterpTab[k][j].m_Cursor -= m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Data.size();
 			}
 
-			m_OutBuf->m_Left[wc] +=  Output * m_Data->m_LeftVolume;
-			m_OutBuf->m_Right[wc] += Output * m_Data->m_RightVolume;
-
-			// avance le curseur temporaire d'écriture
-			wc++;
-			if(wc >= m_OutBuf->m_Size)
-				wc = 0;
+			OutBuf->m_Data[wc] = { Output * m_Data->m_LeftVolume, Output * m_Data->m_RightVolume };
+			wc = (wc + 1) % OutBuf->m_Data.size();
 		}
 	}
 }

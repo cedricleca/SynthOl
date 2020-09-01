@@ -3,38 +3,9 @@
 namespace SynthOl
 {
 
-//-----------------------------------------------------
-void FilterSource::Init(StereoSoundBuf * _OutBuf, Synth * _Synth, int _Channel)
+	void EchoFilterSource<>::Render(long _SampleNr)
 {
-	m_SrcWaveForm.Allocate(PLAYBACK_FREQ); 
-	SoundSource::Init(_OutBuf, _Synth, _Channel); 
-}
-
-//-----------------------------------------------------
-StereoSoundBuf * FilterSource::GetSrcWaveForm()
-{
-	return &m_SrcWaveForm;
-}
-
-//-----------------------------------------------------
-void EchoFilterSource::Init(long _DelayLen, StereoSoundBuf * _OutBuf, Synth * _Synth, int _Channel)
-{
-	m_DelayWaveForm.Allocate(_DelayLen); 
-	m_DelayLen = 0;
-	m_Feedback = 0.0f;
-	m_ResoSteps = 0;
-	m_ResoFeedback = 0.0f;
-	m_ResoDelayLen = 0;
-	m_S0 = 0.0f;
-	m_S1 = 0.0f;
-
-	FilterSource::Init(_OutBuf, _Synth, _Channel); 
-}
-
-//-----------------------------------------------------
-void EchoFilterSource::Render(long _SampleNr)
-{
-	long wc = m_OutBuf->m_WriteCursor;
+	long & wc = m_Dest.get()->m_WriteCursor;
 
 	for(int i = 0; i < _SampleNr; i++)
 	{
@@ -46,39 +17,32 @@ void EchoFilterSource::Render(long _SampleNr)
 		{
 			int csr = m_SrcWaveForm.m_WriteCursor + j;
 			if(csr < 0)
-				csr += m_SrcWaveForm.m_Size;
+				csr += m_SrcWaveForm.m_Data.size();
 
-			resoSource0 += m_SrcWaveForm.m_Left[csr] * fd;
-			resoSource1 += m_SrcWaveForm.m_Right[csr] * fd;
+			resoSource0 += m_SrcWaveForm.m_Data[csr].first * fd;
+			resoSource1 += m_SrcWaveForm.m_Data[csr].second * fd;
 			fd *= m_ResoFeedback;
 		}
 
-		float tS = m_DelayWaveForm.m_Left[m_DelayWaveForm.m_WriteCursor];
-		m_S0 = 0.3f*tS + 0.7f*m_S0;
-		m_S1 = 0.1f*tS + 0.2f*m_S0 + 0.7f*m_S1;
-		m_DelayWaveForm.m_Left[m_DelayWaveForm.m_WriteCursor] = m_Feedback*m_S1;
-		m_DelayWaveForm.m_Left[m_DelayWaveForm.m_WriteCursor] += resoSource0;
+		const float tSL = m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].first;
+		m_S0 = 0.3f*tSL + 0.7f*m_S0;
+		m_S1 = 0.1f*tSL + 0.2f*m_S0 + 0.7f*m_S1;
+		m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].first = m_Feedback*m_S1 + resoSource0;
 
-		tS = m_DelayWaveForm.m_Right[m_DelayWaveForm.m_WriteCursor];
-		m_S0 = 0.3f*tS + 0.7f*m_S0;
-		m_S1 = 0.1f*tS + 0.2f*m_S0 + 0.7f*m_S1;
-		m_DelayWaveForm.m_Right[m_DelayWaveForm.m_WriteCursor] = m_Feedback*m_S1;
-		m_DelayWaveForm.m_Right[m_DelayWaveForm.m_WriteCursor] += resoSource1;
+		const float tSR = m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second;
+		m_S0 = 0.3f*tSR + 0.7f*m_S0;
+		m_S1 = 0.1f*tSR + 0.2f*m_S0 + 0.7f*m_S1;
+		m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second = m_Feedback*m_S1 + resoSource1;
 
-		m_OutBuf->m_Left[wc] += m_DelayWaveForm.m_Left[m_DelayWaveForm.m_WriteCursor];
-		m_OutBuf->m_Right[wc] += m_DelayWaveForm.m_Right[m_DelayWaveForm.m_WriteCursor];
+		m_Dest.get()->m_Data[wc].first += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].first;
+		m_Dest.get()->m_Data[wc].second += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second;
 
-		m_DelayWaveForm.m_WriteCursor++;
-		if(m_DelayWaveForm.m_WriteCursor >= m_DelayWaveForm.m_Size || m_DelayWaveForm.m_WriteCursor >= m_DelayLen)
+		m_DelayWaveForm.m_WriteCursor = (m_DelayWaveForm.m_WriteCursor + 1) % m_DelayWaveForm.m_Data.size();
+		if(m_DelayWaveForm.m_WriteCursor >= m_DelayLen)
 			m_DelayWaveForm.m_WriteCursor = 0;
 
-		m_SrcWaveForm.m_WriteCursor++;
-		if(m_SrcWaveForm.m_WriteCursor >= m_SrcWaveForm.m_Size)
-			m_SrcWaveForm.m_WriteCursor = 0;
-
-		wc++;
-		if(wc >= m_OutBuf->m_Size)
-			wc = 0;
+		m_SrcWaveForm.m_WriteCursor = (m_SrcWaveForm.m_WriteCursor + 1) % m_SrcWaveForm.m_Data.size();
+		wc = (wc + 1) % m_Dest.get()->m_Data.size();
 	}
 }
 
