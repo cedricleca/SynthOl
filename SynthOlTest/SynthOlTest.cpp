@@ -7,6 +7,18 @@
 int main()
 {    
 	SynthOl::Synth Synth;
+	SynthOl::AnalogSourceData Data;
+	SynthOl::AnalogSource AnalogSource0(&Synth.m_OutBuf, &Synth, 0, &Data);
+	Synth.AddSource(AnalogSource0);
+	Synth.NoteOn(0, 10, 1.f);
+	Synth.Render(255);
+	Synth.NoteOff(0, 10);
+	Synth.Render(255);
+
+	short L, R;
+	for(int i = 0; i < 255+255; i++)
+		Synth.PopOutputVal(L, R);
+
     std::cout << "Hello World!\n";
 }
 

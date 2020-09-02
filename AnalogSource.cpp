@@ -11,15 +11,13 @@ AnalogSource::AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, An
 {
 	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
 	{
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Volume )]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Morph  )]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Distort)]);
-		m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )].Init(Synth, &m_Data->m_LowFreqOscillatorTab[i*int(LFODest::Max)+int(LFODest::Tune   )]);
+		for(int j = 0; j < int(LFODest::Max); j++)
+			m_LFOTab[i][j].Init(Synth, &m_Data->m_LFOTab[i][j]);
 
 		SetOscillator((WaveType)m_Data->m_OscillatorTab[i].m_WF0, (WaveType)m_Data->m_OscillatorTab[i].m_WF1, i);
 	}
 
-	m_Data->m_PolyphonyMode = PolyphonyMode::Arpeggio;
+	m_Data->m_PolyphonyMode = PolyphonyMode::Poly;
 	m_Data->m_PortamentoTime = 0.5f;
 }
 
@@ -64,8 +62,9 @@ void AnalogSource::NoteOn(int _KeyId, float _Velocity)
 Out:
 	m_Transients.m_NoteTab[Idx].NoteOn(_KeyId, _Velocity);
 
-	for(auto & LFO : m_LowFreqOscillatorTab)
-		LFO.NoteOn();
+	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
+		for(int j = 0; j < int(LFODest::Max); j++)
+			m_LFOTab[i][j].NoteOn();
 }
 
 //-----------------------------------------------------
@@ -137,15 +136,15 @@ void AnalogSource::SetOscillator(WaveType Wave, WaveType MorphWave, int Index)
 //-----------------------------------------------------
 void AnalogSource::Render(long _SampleNr)
 {
-	auto * OutBuf = m_Dest.get();
-	long wc = OutBuf->m_WriteCursor;
+	long wc = m_Dest->m_WriteCursor;
 	long wcSav = wc;
 
 	float time = (float)_SampleNr / PlaybackFreq;
 
 	// update Low freq oscillators
-	for(auto & LFO : m_LowFreqOscillatorTab)
-		LFO.Update(time);
+	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
+		for(int j = 0; j < int(LFODest::Max); j++)
+			m_LFOTab[i][j].Update(time);
 	
 	int nbActiveNotes = 0;
 	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
@@ -196,10 +195,10 @@ void AnalogSource::Render(long _SampleNr)
 		// update Oscillators
 		for(int j = 0; j < AnalogsourceOscillatorNr; j++)
 		{
-			m_Transients.m_OscillatorTab[j].m_Volume		= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Volume )].GetValue(m_Transients.m_NoteTab[k].m_Time);
-			m_Transients.m_OscillatorTab[j].m_Morph			= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Morph  )].GetValue(m_Transients.m_NoteTab[k].m_Time);
-			m_Transients.m_OscillatorTab[j].m_DistortGain	= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Distort)].GetValue(m_Transients.m_NoteTab[k].m_Time);
-			m_Transients.m_OscillatorTab[j].m_StepShift		= m_LowFreqOscillatorTab[j*int(LFODest::Max)+int(LFODest::Tune   )].GetValue(m_Transients.m_NoteTab[k].m_Time, true);
+			m_Transients.m_OscillatorTab[j].m_Volume		= m_LFOTab[j][int(LFODest::Volume )].GetValue(m_Transients.m_NoteTab[k].m_Time);
+			m_Transients.m_OscillatorTab[j].m_Morph			= m_LFOTab[j][int(LFODest::Morph  )].GetValue(m_Transients.m_NoteTab[k].m_Time);
+			m_Transients.m_OscillatorTab[j].m_DistortGain	= m_LFOTab[j][int(LFODest::Distort)].GetValue(m_Transients.m_NoteTab[k].m_Time);
+			m_Transients.m_OscillatorTab[j].m_StepShift		= m_LFOTab[j][int(LFODest::Tune   )].GetValue(m_Transients.m_NoteTab[k].m_Time, true);
 
 			float Freq = NoteFreq;
 			for(int i = 0; i < m_Data->m_OscillatorTab[j].m_OctaveOffset; i++)	Freq *= 2.0f;
@@ -260,8 +259,8 @@ void AnalogSource::Render(long _SampleNr)
 					m_Transients.m_InterpTab[k][j].m_Cursor -= m_Transients.m_OscillatorTab[j].m_SrcWaveForm->m_Data.size();
 			}
 
-			OutBuf->m_Data[wc] = { Output * m_Data->m_LeftVolume, Output * m_Data->m_RightVolume };
-			wc = (wc + 1) % OutBuf->m_Data.size();
+			m_Dest->m_Data[wc] = { Output * m_Data->m_LeftVolume, Output * m_Data->m_RightVolume };
+			wc = (wc + 1) % m_Dest->m_Data.size();
 		}
 	}
 }

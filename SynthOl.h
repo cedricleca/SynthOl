@@ -6,6 +6,7 @@
 #include <memory>
 #include <array>
 #include <utility>
+#include <map>
 
 namespace SynthOl
 {
@@ -59,8 +60,10 @@ namespace SynthOl
 	template <class DataType = float, size_t Size = 16>
 	struct SoundBuf
 	{
-		std::array<DataType, Size>	m_Data;
-		long						m_WriteCursor = 0;
+		std::vector<DataType>	m_Data;
+		long					m_WriteCursor = 0;
+
+		SoundBuf()	{ m_Data.resize(Size); }
 	};
 
 	struct StereoSoundBuf : SoundBuf<std::pair<float, float>, PlaybackFreq>
@@ -82,19 +85,20 @@ namespace SynthOl
 		void Soften(long Index, long Size, float Coef);
 		void Normalize(long Index, long Size, float Coef);
 		void operator *= (float Coef);
-		void WaveformSquare(unsigned int Size, float Magnitude, bool Soft);
-		void WaveformSaw(unsigned int Size, float Magnitude, bool Soft);
-		void WaveformRamp(unsigned int Size, float Magnitude, bool Soft);
-		void WaveformRand(unsigned int Size, float Magnitude, bool Soft);
 	};
+
+	Waveform WaveformSquare(bool Soft);
+	Waveform WaveformSaw(bool Soft);
+	Waveform WaveformRamp(bool Soft);
+	Waveform WaveformRand(bool Soft);
 
 	//_________________________________________________
 	class SoundSource
 	{
 	protected:
-		std::shared_ptr<StereoSoundBuf> m_Dest;
-		std::shared_ptr<Synth>			m_Synth;
-		int								m_Channel = 0;
+		StereoSoundBuf	* m_Dest;
+		Synth			* m_Synth;
+		int				m_Channel = 0;
 
 	public:
 		SoundSource(StereoSoundBuf * Dest, Synth * Synth, int Channel) : m_Dest(Dest), m_Synth(Synth), m_Channel(Channel)
@@ -113,7 +117,7 @@ namespace SynthOl
 		virtual void NoteOn(int _KeyId, float _Velocity) = 0;
 		virtual void NoteOff(int _KeyId) = 0;
 		virtual void Render(long _SampleNr) = 0;
-		virtual StereoSoundBuf & GetDest(){ return *m_Dest.get(); }
+		virtual StereoSoundBuf & GetDest(){ return *m_Dest; }
 	};
 
 	//_________________________________________________
@@ -151,7 +155,7 @@ namespace SynthOl
 	//_________________________________________________
 	class SampleSource : public SoundSource
 	{
-		Waveform		* m_SrcWaveForm;
+		const Waveform	* m_SrcWaveForm;
 
 	public:
 		bool			m_bLoop = true;
@@ -159,12 +163,13 @@ namespace SynthOl
 		float			m_Step = 1.0f;
 		float			m_Cursor = 0.0f;
 
-		SampleSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, Waveform * SrcWaveForm) :
+		SampleSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, const Waveform * SrcWaveForm) :
 			SoundSource(Dest, Synth, Channel),
 			m_SrcWaveForm(SrcWaveForm)
 		{}
 
 		void NoteOn(int KeyId, float Velocity) override { m_Cursor = 0; }
+		void NoteOff(int _KeyId) override {};
 		void Render(long SampleNr) override;
 	};
 
@@ -197,25 +202,25 @@ namespace SynthOl
 	//_________________________________________________
 	struct LFOData
 	{
-		float				m_Delay;
-		float				m_Attack;
-		float				m_Magnitude;
-		float				m_Rate;
-		float				m_BaseValue;
-		WaveType			m_WF;
-		char				m_NoteSync;
+		float				m_Delay = .0f;
+		float				m_Attack = .0f;
+		float				m_Magnitude = .0f;
+		float				m_Rate = .0f;
+		float				m_BaseValue = .0f;
+		WaveType			m_WF = WaveType::Square;
+		char				m_NoteSync = 0;
 	};
 
 	//_________________________________________________
 	class LFO
 	{
-		const Waveform		* m_SrcWaveForm;
-		float				m_Cursor;
-		float				m_CurVal;
-		Synth				* m_Synth;
+		const Waveform		* m_SrcWaveForm = nullptr;
+		float				m_Cursor = .0f;
+		float				m_CurVal = .0f;
+		Synth				* m_Synth = nullptr;
 
 	public:
-		LFOData	* m_Data;
+		LFOData	* m_Data = nullptr;
 
 		void Init(Synth * _Synth, LFOData	* _Data);
 		void Update(float _FrameTime);
@@ -228,30 +233,29 @@ namespace SynthOl
 	//_________________________________________________
 	struct OscillatorData
 	{
-		char			m_OctaveOffset;
-		char			m_NoteOffset;	
-		WaveType		m_WF0;
-		WaveType		m_WF1;
-		ModulationType	m_ModulationType;
+		char			m_OctaveOffset = 0;
+		char			m_NoteOffset = 0;	
+		WaveType		m_WF0 = WaveType::Square;
+		WaveType		m_WF1 = WaveType::Square;
+		ModulationType	m_ModulationType = ModulationType::Mul;
 	};
 
 	static const int AnalogsourceOscillatorNr = 2;
-	static const int AnalogsourceLFONr = AnalogsourceOscillatorNr*int(LFODest::Max);
 	static const int AnalogsourcePolyphonyNoteNr = 3;
 
 	//_________________________________________________
 	struct AnalogSourceData
 	{
 		OscillatorData			m_OscillatorTab[AnalogsourceOscillatorNr];
-		LFOData					m_LowFreqOscillatorTab[AnalogsourceLFONr];
-		float					m_ADSR_Attack;
-		float					m_ADSR_Decay;
-		float					m_ADSR_Sustain;
-		float					m_ADSR_Release;
-		float					m_LeftVolume;
-		float					m_RightVolume;
-		float					m_PortamentoTime;
-		PolyphonyMode			m_PolyphonyMode;
+		LFOData					m_LFOTab[AnalogsourceOscillatorNr][int(LFODest::Max)];
+		float					m_ADSR_Attack = 0.f;
+		float					m_ADSR_Decay = 0.f;
+		float					m_ADSR_Sustain = 0.f;
+		float					m_ADSR_Release = 0.f;
+		float					m_LeftVolume = 0.f;
+		float					m_RightVolume = 0.f;
+		float					m_PortamentoTime = 0.f;
+		PolyphonyMode			m_PolyphonyMode = PolyphonyMode::Poly;
 	};
 
 	//_________________________________________________
@@ -291,7 +295,7 @@ namespace SynthOl
 
 	public:
 		AnalogSourceData	* m_Data;
-		LFO					m_LowFreqOscillatorTab[AnalogsourceLFONr];
+		LFO					m_LFOTab[AnalogsourceOscillatorNr][int(LFODest::Max)];
 		Transients			m_Transients;
 
 		AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, AnalogSourceData * Data);
@@ -305,26 +309,20 @@ namespace SynthOl
 	//_________________________________________________
 	class Synth : public MIDIListener
 	{
-		std::vector<std::shared_ptr<SoundSource>>	m_SourceTab;
+		std::vector<SoundSource *>					m_SourceTab;
 		std::array<Waveform, int(WaveType::Max)>	m_WaveTab;
-		StereoSoundBuf								m_OutBuf;
 
 	public:
+		StereoSoundBuf								m_OutBuf;
+
 		Synth();
-		void Render(unsigned long SamplesToRender);
+		void Render(unsigned int SamplesToRender);
 		void NoteOn(int _Channel, int _KeyId, float _Velocity);
 		void NoteOff(int _Channel, int _KeyId);
-
-		template<class SourceT>
-		std::shared_ptr<SoundSource> AddSource()
-		{
-			auto NewSource = std::make_shared<SourceT>();
-			m_SourceTab.emplace(NewSource);
-			return NewSource;
-		}
-
-		const Waveform & GetWaveForm(WaveType _WaveForm) const { return m_WaveTab[int(_WaveForm)]; }
-		void PopOutputVal(float & _Left, float & _Right);
+		void AddSource(SoundSource & NewSource) { m_SourceTab.push_back(&NewSource); }
+		const Waveform & GetWaveForm(WaveType Type) const { return m_WaveTab[int(Type)]; }
+		void PopOutputVal(float & OutLeft, float & OutRight);
+		void PopOutputVal(short & OutLeft, short & OutRight);
 	};
 
 }; // namespace SynthOl

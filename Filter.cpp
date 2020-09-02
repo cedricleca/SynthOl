@@ -5,7 +5,7 @@ namespace SynthOl
 
 	void EchoFilterSource<>::Render(long _SampleNr)
 {
-	long & wc = m_Dest.get()->m_WriteCursor;
+	long & wc = m_Dest->m_WriteCursor;
 
 	for(int i = 0; i < _SampleNr; i++)
 	{
@@ -34,15 +34,15 @@ namespace SynthOl
 		m_S1 = 0.1f*tSR + 0.2f*m_S0 + 0.7f*m_S1;
 		m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second = m_Feedback*m_S1 + resoSource1;
 
-		m_Dest.get()->m_Data[wc].first += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].first;
-		m_Dest.get()->m_Data[wc].second += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second;
+		m_Dest->m_Data[wc].first += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].first;
+		m_Dest->m_Data[wc].second += m_DelayWaveForm.m_Data[m_DelayWaveForm.m_WriteCursor].second;
 
 		m_DelayWaveForm.m_WriteCursor = (m_DelayWaveForm.m_WriteCursor + 1) % m_DelayWaveForm.m_Data.size();
 		if(m_DelayWaveForm.m_WriteCursor >= m_DelayLen)
 			m_DelayWaveForm.m_WriteCursor = 0;
 
 		m_SrcWaveForm.m_WriteCursor = (m_SrcWaveForm.m_WriteCursor + 1) % m_SrcWaveForm.m_Data.size();
-		wc = (wc + 1) % m_Dest.get()->m_Data.size();
+		wc = (wc + 1) % m_Dest->m_Data.size();
 	}
 }
 

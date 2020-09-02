@@ -1,6 +1,7 @@
 #include "SynthOl.h"
 #include <tuple>
 #include <algorithm>
+#include <assert.h>
 
 namespace SynthOl
 {
@@ -81,34 +82,45 @@ float Distortion(float _Gain, float _Sample)
 
 Synth::Synth()
 {
-	m_WaveTab[(int)WaveType::Square].WaveformSquare(PlaybackFreq, 1.f, false);
-	m_WaveTab[(int)WaveType::Square_Soft].WaveformSquare(PlaybackFreq, 1.f, true);
-	m_WaveTab[(int)WaveType::Saw].WaveformSaw(PlaybackFreq, 1.f, false);
-	m_WaveTab[(int)WaveType::Saw_Soft].WaveformSaw(PlaybackFreq, 1.f, true);
-	m_WaveTab[(int)WaveType::RampUp].WaveformRamp(PlaybackFreq, 1.f, false);
-	m_WaveTab[(int)WaveType::RampUp_Soft].WaveformRamp(PlaybackFreq, 1.f, true);
-	m_WaveTab[(int)WaveType::Rand].WaveformRand(PlaybackFreq, 1.f, false);
+	m_WaveTab[(int)WaveType::Square] = WaveformSquare(false);
+	m_WaveTab[(int)WaveType::Square_Soft] = WaveformSquare(true);
+	m_WaveTab[(int)WaveType::Saw] = WaveformSaw(false);
+	m_WaveTab[(int)WaveType::Saw_Soft] = WaveformSaw(true);
+	m_WaveTab[(int)WaveType::RampUp] = WaveformRamp(false);
+	m_WaveTab[(int)WaveType::RampUp_Soft] = WaveformRamp(true);
+	m_WaveTab[(int)WaveType::Rand] = WaveformRand(false);
 }
 
 //-----------------------------------------------------
-void Synth::Render(unsigned long SamplesToRender)
+void Synth::Render(unsigned int SamplesToRender)
 {
+	assert(SamplesToRender < m_OutBuf.m_Data.size());
+	assert(m_SourceTab.size() > 0);
+
 	// clear out buffers
-	for(auto It = std::end(m_SourceTab)-1; It >= std::begin(m_SourceTab); --It)
-		(*It)->GetDest().Clear(SamplesToRender);
+	for(int i = int(m_SourceTab.size()) - 1; i >= 0; i--)
+		m_SourceTab[i]->GetDest().Clear(SamplesToRender);
 
 	// render source buffers en reverse
-	for(auto It = std::end(m_SourceTab)-1; It >= std::begin(m_SourceTab); --It)
-		(*It)->Render(SamplesToRender);
+	for(int i = int(m_SourceTab.size()) - 1; i >= 0; i--)
+		m_SourceTab[i]->Render(SamplesToRender);
 }
 
 //-----------------------------------------------------
-void Synth::PopOutputVal(float & Left, float & Right)
+void Synth::PopOutputVal(float & OutLeft, float & OutRight)
 {
-	std::tie(Left, Right) = m_OutBuf.m_Data[m_OutBuf.m_WriteCursor];
-	Left = std::clamp(Left, 0.f, 1.f);
-	Right = std::clamp(Right, 0.f, 1.f);
+	std::tie(OutLeft, OutRight) = m_OutBuf.m_Data[m_OutBuf.m_WriteCursor];
+	OutLeft = std::clamp(OutLeft, 0.f, 1.f);
+	OutRight = std::clamp(OutRight, 0.f, 1.f);
 	m_OutBuf.m_WriteCursor = (m_OutBuf.m_WriteCursor + 1) % m_OutBuf.m_Data.size(); 
+}
+
+void Synth::PopOutputVal(short & OutLeft, short & OutRight)
+{
+	float Left, Right;
+	PopOutputVal(Left, Right);
+	OutLeft = short(Left * 32767.f);
+	OutRight = short(Right * 32767.f);
 }
 
 //-----------------------------------------------------

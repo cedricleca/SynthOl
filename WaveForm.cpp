@@ -2,68 +2,78 @@
 
 namespace SynthOl
 {
-	void Waveform::WaveformSquare(unsigned int Size, float Magnitude, bool Soft)
+	Waveform WaveformSquare(bool Soft)
 	{
+		Waveform WF;
+		const unsigned int Size = static_cast<unsigned int>(WF.m_Data.size());
 		const unsigned int halfPeriod = Size / 2;
 		const unsigned int QuatPeriod = Size / 4;
-	
 		for(unsigned int i = 0; i < Size; i++)
-			m_Data[i] = (i > QuatPeriod && i < QuatPeriod+halfPeriod) ? Magnitude : -Magnitude;
+			WF.m_Data[i] = (i > QuatPeriod && i < QuatPeriod+halfPeriod) ? 1.0f : -1.0f;
 
 		if(Soft)
 		{
-			Soften(0, PlaybackFreq, 0.001f);
-			Normalize(0, PlaybackFreq, 1.0f);
+			WF.Soften(0, Size, 0.001f);
+			WF.Normalize(0, Size, 1.0f);
 		}
+
+		return WF;
 	}
 
-	void Waveform::WaveformSaw(unsigned int Size, float Magnitude, bool Soft)
+	Waveform WaveformSaw(bool Soft)
 	{
+		Waveform WF;
+		const unsigned int Size = static_cast<unsigned int>(WF.m_Data.size());
 		const float halfPeriod = float(Size) / 2.0f;
-	
 		float c = 0.0f;
 		for(unsigned int i = 0; i < Size; i++, c += 1.0f)
 		{
 			if(i < Size / 2)
-				m_Data[i] = ((2.0f * c / halfPeriod) - 1.0f) * Magnitude;
+				WF.m_Data[i] = ((2.0f * c / halfPeriod) - 1.0f) * 1.0f;
 			else
-				m_Data[i] = (1.0f - 2.0f * ((c - halfPeriod) / halfPeriod)) * Magnitude;
+				WF.m_Data[i] = (1.0f - 2.0f * ((c - halfPeriod) / halfPeriod)) * 1.0f;
 		}
 
 		if(Soft)
 		{
-			Soften(0, PlaybackFreq, 0.001f);
-			Normalize(0, PlaybackFreq, 1.0f);
+			WF.Soften(0, Size, 0.001f);
+			WF.Normalize(0, Size, 1.0f);
 		}
+	
+		return WF;
 	}
 
-	void Waveform::WaveformRamp(unsigned int Size, float Magnitude, bool Soft)
+	Waveform WaveformRamp(bool Soft)
 	{
-		const float halfPeriod = float(Size) / 2.0f;
 	
+		Waveform WF;
+		const unsigned int Size = static_cast<unsigned int>(WF.m_Data.size());
+		const float halfPeriod = float(Size) / 2.0f;
 		float c = 0.0f;
 		for(unsigned int i = 0; i < Size; i++, c += 1.0f)
-			m_Data[i] = ((c / halfPeriod) - 1.0f) * Magnitude;
+			WF.m_Data[i] = ((c / halfPeriod) - 1.0f) * 1.0f;
 
 		if(Soft)
 		{
-			Soften(0, PlaybackFreq, 0.001f);
-			Normalize(0, PlaybackFreq, 1.0f);
+			WF.Soften(0, Size, 0.001f);
+			WF.Normalize(0, Size, 1.0f);
 		}
+		return WF;
 	}
 
-	void Waveform::WaveformRand(unsigned int Size, float Magnitude, bool Soft)
+	Waveform WaveformRand(bool Soft)
 	{
 		int g_x1 = 0x67452301;
 		int g_x2 = 0xefcdab89;
-		Magnitude *= 2.0f / 0xffffffff;
 
-		for(unsigned int i = 0; i < Size; i++)
+		Waveform WF;
+		for(unsigned int i = 0; i < WF.m_Data.size(); i++)
 		{
 			g_x1 ^= g_x2;
-			m_Data[i] = g_x2 * Magnitude;
+			WF.m_Data[i] = float(g_x2);
 			g_x2 += g_x1;
 		}
+		return WF;
 	}
 
 //-----------------------------------------------------
