@@ -5,20 +5,25 @@ namespace SynthOl
 {
 
 //-----------------------------------------------------
-AnalogSource::AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, AnalogSourceData * Data) : 
-	SoundSource(Dest, Synth, Channel),
+AnalogSource::AnalogSource(StereoSoundBuf * Dest, int Channel, AnalogSourceData * Data) : 
+	SoundSource(Dest, Channel),
 	m_Data(Data)
 {
+	m_Data->m_PolyphonyMode = PolyphonyMode::Poly;
+	m_Data->m_PortamentoTime = 0.5f;
+}
+
+void AnalogSource::OnBound(Synth * Synth)
+{ 
+	SoundSource::OnBound(Synth); 
+
 	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
 	{
 		for(int j = 0; j < int(LFODest::Max); j++)
-			m_LFOTab[i][j].Init(Synth, &m_Data->m_LFOTab[i][j]);
+			m_LFOTab[i][j].Init(m_Synth, &m_Data->m_LFOTab[i][j]);
 
 		SetOscillator((WaveType)m_Data->m_OscillatorTab[i].m_WF0, (WaveType)m_Data->m_OscillatorTab[i].m_WF1, i);
 	}
-
-	m_Data->m_PolyphonyMode = PolyphonyMode::Poly;
-	m_Data->m_PortamentoTime = 0.5f;
 }
 
 //-----------------------------------------------------

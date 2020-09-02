@@ -101,8 +101,8 @@ namespace SynthOl
 		int				m_Channel = 0;
 
 	public:
-		SoundSource(StereoSoundBuf * Dest, Synth * Synth, int Channel) : m_Dest(Dest), m_Synth(Synth), m_Channel(Channel)
-		{}
+		SoundSource(StereoSoundBuf * Dest, int Channel) : m_Dest(Dest), m_Channel(Channel) {}
+		virtual void OnBound(Synth * Synth) { m_Synth = Synth; }
 
 		virtual void NoteOn(int _Channel, int _KeyId, float _Velocity)
 		{
@@ -145,10 +145,11 @@ namespace SynthOl
 		float	m_ResoFeedback = 0.f;
 		float	m_Feedback = 0.f;
 
-		EchoFilterSource(long DelayLen, SoundSource * Dest, Synth * Synth, int Channel) : 
-			FilterSource(Dest, Synth, Channel)
+		EchoFilterSource(long DelayLen, SoundSource * Dest, int Channel) : 
+			FilterSource(Dest, Channel)
 		{}
 
+		void OnBound(Synth * Synth) override { SoundSource::OnBound(Synth); }
 		virtual void Render(long _SampleNr) override;
 	};
 
@@ -163,11 +164,12 @@ namespace SynthOl
 		float			m_Step = 1.0f;
 		float			m_Cursor = 0.0f;
 
-		SampleSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, const Waveform * SrcWaveForm) :
-			SoundSource(Dest, Synth, Channel),
+		SampleSource(StereoSoundBuf * Dest, int Channel, const Waveform * SrcWaveForm) :
+			SoundSource(Dest, Channel),
 			m_SrcWaveForm(SrcWaveForm)
 		{}
 
+		void OnBound(Synth * Synth) override { SoundSource::OnBound(Synth); }
 		void NoteOn(int KeyId, float Velocity) override { m_Cursor = 0; }
 		void NoteOff(int _KeyId) override {};
 		void Render(long SampleNr) override;
@@ -298,7 +300,8 @@ namespace SynthOl
 		LFO					m_LFOTab[AnalogsourceOscillatorNr][int(LFODest::Max)];
 		Transients			m_Transients;
 
-		AnalogSource(StereoSoundBuf * Dest, Synth * Synth, int Channel, AnalogSourceData * Data);
+		AnalogSource(StereoSoundBuf * Dest, int Channel, AnalogSourceData * Data);
+		void OnBound(Synth * Synth) override;
 		void NoteOn(int _KeyId, float _Velocity) override;
 		void NoteOff(int _KeyId) override;
 		void Render(long _SampleNr) override;
@@ -319,7 +322,7 @@ namespace SynthOl
 		void Render(unsigned int SamplesToRender);
 		void NoteOn(int _Channel, int _KeyId, float _Velocity);
 		void NoteOff(int _Channel, int _KeyId);
-		void AddSource(SoundSource & NewSource) { m_SourceTab.push_back(&NewSource); }
+		void BindSource(SoundSource & NewSource) { NewSource.OnBound(this); m_SourceTab.push_back(&NewSource); }
 		const Waveform & GetWaveForm(WaveType Type) const { return m_WaveTab[int(Type)]; }
 		void PopOutputVal(float & OutLeft, float & OutRight);
 		void PopOutputVal(short & OutLeft, short & OutRight);

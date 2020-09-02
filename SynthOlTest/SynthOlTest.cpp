@@ -8,8 +8,8 @@ int main()
 {    
 	SynthOl::Synth Synth;
 	SynthOl::AnalogSourceData Data;
-	SynthOl::AnalogSource AnalogSource0(&Synth.m_OutBuf, &Synth, 0, &Data);
-	Synth.AddSource(AnalogSource0);
+	SynthOl::AnalogSource AnalogSource0(&Synth.m_OutBuf, 0, &Data);
+	Synth.BindSource(AnalogSource0);
 	Synth.NoteOn(0, 10, 1.f);
 	Synth.Render(255);
 	Synth.NoteOff(0, 10);
