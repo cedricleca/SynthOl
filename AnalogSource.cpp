@@ -22,35 +22,40 @@ void AnalogSource::OnBound(Synth * Synth)
 		for(int j = 0; j < int(LFODest::Max); j++)
 			m_OscillatorTab[i].m_LFOTab[j].Init(&m_Data->m_OscillatorTab[i].m_LFOTab[j], *m_Synth);
 
-		SetOscillator((WaveType)m_Data->m_OscillatorTab[i].m_WF0, (WaveType)m_Data->m_OscillatorTab[i].m_WF1, i);
+		SetOscillator(m_Data->m_OscillatorTab[i].m_WF0, m_Data->m_OscillatorTab[i].m_WF1, i);
 	}
 }
 
 //-----------------------------------------------------
-void AnalogSource::NoteOn(int _KeyId, float _Velocity)
+void AnalogSource::NoteOn(int KeyId, float Velocity)
 {	
 	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
-	{
-		if(m_NoteTab[k].m_Code == _KeyId && m_NoteTab[k].m_NoteOn)
+		if(m_NoteTab[k].m_Code == KeyId && m_NoteTab[k].m_NoteOn)
 			return;
-	}
 
-	int Idx = 0;
+	auto LFONoteOn = [this]() 
+	{
+		for(int i = 0; i < AnalogsourceOscillatorNr; i++)
+			for(int j = 0; j < int(LFODest::Max); j++)
+				m_OscillatorTab[i].m_LFOTab[j].NoteOn();
+	};
 
 	if(m_Data->m_PolyphonyMode == PolyphonyMode::Portamento)
 	{
 		if(m_NoteTab[0].m_NoteOn)
 		{
 			m_PortamentoCurFreq = GetNoteFreq(m_NoteTab[0].m_Code);
-			m_PortamentoStep = (GetNoteFreq(_KeyId) - m_PortamentoCurFreq) / m_Data->m_PortamentoTime;
+			m_PortamentoStep = (GetNoteFreq(KeyId) - m_PortamentoCurFreq) / m_Data->m_PortamentoTime;
 			m_NoteTab[0].NoteOff();
 		}
 		else
 		{
-			m_PortamentoCurFreq = GetNoteFreq(_KeyId);
+			m_PortamentoCurFreq = GetNoteFreq(KeyId);
 			m_PortamentoStep = 0.0f;
 		}
-		goto Out;
+
+		m_NoteTab[0].NoteOn(KeyId, Velocity);
+		LFONoteOn();
 	}
 	else
 	{
@@ -58,60 +63,55 @@ void AnalogSource::NoteOn(int _KeyId, float _Velocity)
 		{
 			if(!m_NoteTab[k].m_NoteOn)
 			{
-				Idx = k;
-				goto Out;
+				m_NoteTab[k].NoteOn(KeyId, Velocity);
+				LFONoteOn();
+				break;
 			}
 		}
 	}
 
-Out:
-	m_NoteTab[Idx].NoteOn(_KeyId, _Velocity);
-
-	for(int i = 0; i < AnalogsourceOscillatorNr; i++)
-		for(int j = 0; j < int(LFODest::Max); j++)
-			m_OscillatorTab[i].m_LFOTab[j].NoteOn();
 }
 
 //-----------------------------------------------------
-void AnalogSource::NoteOff(int _KeyId)
+void AnalogSource::NoteOff(int KeyId)
 {
 	for(int k = 0; k < AnalogsourcePolyphonyNoteNr; k++)
 	{
-		if(m_NoteTab[k].m_Code == _KeyId)
+		if(m_NoteTab[k].m_Code == KeyId)
 		{
 			m_NoteTab[k].NoteOff();
-			return;
+			break;
 		}
 	}
 }
 
 //-----------------------------------------------------
-float AnalogSource::GetADSRValue(Note * _Note, float _Time)
+float AnalogSource::GetADSRValue(Note & Note, float Time)
 {
-	if(_Note->m_NoteOn)
+	if(Note.m_NoteOn)
 	{
-		if(_Note->m_Time > m_Data->m_ADSR_Attack + m_Data->m_ADSR_Decay)
+		if(Note.m_Time > m_Data->m_ADSR_Attack + m_Data->m_ADSR_Decay)
 		{
-			_Note->m_SustainTime += _Time;
+			Note.m_SustainTime += Time;
 			return m_Data->m_ADSR_Sustain;
 		}
 		else
 		{
-			if(_Note->m_Time > m_Data->m_ADSR_Attack && m_Data->m_ADSR_Decay > 0.0f)
-				return 1.0f + ((_Note->m_Time - m_Data->m_ADSR_Attack) / m_Data->m_ADSR_Decay) * (m_Data->m_ADSR_Sustain - 1.0f);
+			if(Note.m_Time > m_Data->m_ADSR_Attack && m_Data->m_ADSR_Decay > 0.0f)
+				return 1.0f + ((Note.m_Time - m_Data->m_ADSR_Attack) / m_Data->m_ADSR_Decay) * (m_Data->m_ADSR_Sustain - 1.0f);
 			else if(m_Data->m_ADSR_Attack > 0.0f)
-				return (_Note->m_Time / m_Data->m_ADSR_Attack);
+				return (Note.m_Time / m_Data->m_ADSR_Attack);
 			else
 				return 0.0f;
 		}
 	}
 	else
 	{
-		if(_Note->m_Time - _Note->m_SustainTime < m_Data->m_ADSR_Release && m_Data->m_ADSR_Release > 0.0f)
-			return (1.0f - ((_Note->m_Time - _Note->m_SustainTime) / m_Data->m_ADSR_Release)) * m_Data->m_ADSR_Sustain;
+		if(Note.m_Time - Note.m_SustainTime < m_Data->m_ADSR_Release && m_Data->m_ADSR_Release > 0.0f)
+			return (1.0f - ((Note.m_Time - Note.m_SustainTime) / m_Data->m_ADSR_Release)) * m_Data->m_ADSR_Sustain;
 		else
 		{
-			_Note->m_Died = true;
+			Note.m_Died = true;
 			return 0.0f;
 		}
 	}
@@ -172,7 +172,7 @@ void AnalogSource::Render(long SampleNr)
 		Note.m_Time += time;
 	
 		// Get ADSR and Velocity
-		float VolumeMultiplier = GetADSRValue(&Note, time) * Note.m_Velocity * 1.5f;
+		float VolumeMultiplier = GetADSRValue(Note, time) * Note.m_Velocity * 1.5f;
 		if(VolumeMultiplier == 0.0f)
 			continue;
 

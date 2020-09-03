@@ -304,7 +304,7 @@ namespace SynthOl
 		void NoteOff(int _KeyId) override;
 		void Render(long _SampleNr) override;
 		void SetOscillator(WaveType _Wave, WaveType _MorphWave, int _Index);
-		float GetADSRValue(Note * _Note, float _Time);
+		float GetADSRValue(Note & _Note, float _Time);
 	};
 
 	//_________________________________________________
