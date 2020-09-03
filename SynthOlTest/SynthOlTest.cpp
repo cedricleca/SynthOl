@@ -19,7 +19,11 @@ int main()
 	for(int i = 0; i < 255+255; i++)
 		Synth.PopOutputVal(L, R);
 
-    std::cout << "Hello World!\n";
+	Synth.Render(SynthOl::PlaybackFreq);
+	for(int i = 0; i < SynthOl::PlaybackFreq; i++)
+		Synth.PopOutputVal(L, R);
+
+	std::cout << "Hello World!\n";
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
