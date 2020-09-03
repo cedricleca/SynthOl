@@ -214,20 +214,19 @@ namespace SynthOl
 	};
 
 	//_________________________________________________
-	class LFO
+	class LFOTransients
 	{
-		const Waveform		* m_SrcWaveForm = nullptr;
+		const Waveform *	m_SrcWaveForm = nullptr;
 		float				m_Cursor = .0f;
 		float				m_CurVal = .0f;
-		Synth				* m_Synth = nullptr;
 
 	public:
 		LFOData	* m_Data = nullptr;
 
-		void Init(Synth * _Synth, LFOData	* _Data);
-		void Update(float _FrameTime);
-		float GetValue(float _NoteTime, bool _ZeroCentered=false);
-		void SetOscillator(WaveType _Wave);
+		void Init(LFOData * Data, const Synth & Synth);
+		void Update(float FrameTime);
+		float GetValue(float NoteTime, bool ZeroCentered=false);
+		void SetOscillator(WaveType Wave, const Synth & Synth);
 		void NoteOn();
 	};
 
@@ -235,6 +234,7 @@ namespace SynthOl
 	//_________________________________________________
 	struct OscillatorData
 	{
+		LFOData			m_LFOTab[int(LFODest::Max)];
 		char			m_OctaveOffset = 0;
 		char			m_NoteOffset = 0;	
 		WaveType		m_WF0 = WaveType::Square;
@@ -249,7 +249,6 @@ namespace SynthOl
 	struct AnalogSourceData
 	{
 		OscillatorData			m_OscillatorTab[AnalogsourceOscillatorNr];
-		LFOData					m_LFOTab[AnalogsourceOscillatorNr][int(LFODest::Max)];
 		float					m_ADSR_Attack = 0.f;
 		float					m_ADSR_Decay = 0.f;
 		float					m_ADSR_Sustain = 0.f;
@@ -273,6 +272,7 @@ namespace SynthOl
 
 		struct OscillatorTransients
 		{
+			LFOTransients	m_LFOTab[int(LFODest::Max)];
 			const Waveform	* m_SrcWaveForm = nullptr;
 			const Waveform	* m_SrcMorphWaveForm = nullptr;
 			float			m_VolumeInterp = 0.f;
@@ -285,20 +285,18 @@ namespace SynthOl
 			float			m_DistortGain = 0.f;
 		};
 
-		struct Transients
+		struct AnalogSourceNote : Note
 		{
-			OscillatorTransients	m_OscillatorTab[AnalogsourceOscillatorNr];
-			Note					m_NoteTab[AnalogsourceOscillatorNr];
-			OscillatorInterp		m_InterpTab[AnalogsourcePolyphonyNoteNr][AnalogsourceOscillatorNr];
-			int						m_ArpeggioIdx = 0;
-			float					m_PortamentoCurFreq = 0.f;
-			float					m_PortamentoStep = 0.f;
+			OscillatorInterp		m_InterpTab[AnalogsourceOscillatorNr];
 		};
 
 	public:
-		AnalogSourceData	* m_Data;
-		LFO					m_LFOTab[AnalogsourceOscillatorNr][int(LFODest::Max)];
-		Transients			m_Transients;
+		AnalogSourceData		* m_Data;
+		OscillatorTransients	m_OscillatorTab[AnalogsourceOscillatorNr];
+		AnalogSourceNote		m_NoteTab[AnalogsourcePolyphonyNoteNr];
+		int						m_ArpeggioIdx = 0;
+		float					m_PortamentoCurFreq = 0.f;
+		float					m_PortamentoStep = 0.f;
 
 		AnalogSource(StereoSoundBuf * Dest, int Channel, AnalogSourceData * Data);
 		void OnBound(Synth * Synth) override;
